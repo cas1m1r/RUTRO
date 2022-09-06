@@ -25,6 +25,8 @@ class Observer:
 
     def check_for_blocked_programs(self):
         badones = []
+        # update registery entries
+        self.registry = Registry()
         for location in self.registry.keynames['user']:
             for application in self.registry.keynames['user'][location]:
                 if application in self.blocked:
