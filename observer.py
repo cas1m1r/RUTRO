@@ -41,6 +41,7 @@ class Observer:
                 if app in self.bad_applications:
                     print(f'\t-{app}')
         while self.monitoring:
+            self.registry = Registry() # update list in case new things are installed/removed
             for badapp in self.check_for_blocked_programs():
                 self.bad_applications.append(badapp)
                 time.sleep(timeout)
