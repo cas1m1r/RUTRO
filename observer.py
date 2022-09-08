@@ -1,9 +1,46 @@
-from registry import Registry
-from blocked import Blacklist
+import winreg
 import ctypes
 import time
+import os 
+
+# class for holding names of programs to block (maybe could have things added, etc..) 
+class Blacklist:
+    def __init__(self):
+        self.blacklist = self.load_black_list()
+
+    def load_black_list(self):
+        blocked = []
+        if not os.path.isfile('blacklist.txt'):
+            print(f'[!] Missing blacklist.txt')
+            exit()
+        for bad_program in open('blacklist.txt', 'r').read().split('\n'):
+            if len(bad_program):
+                alias = ''.join(bad_program.split(' ')) # Team Viewer removes the space
+                alias2 = f'.{bad_program.lower()}'      # anydesk appears as .anydesk
+                blocked.append(bad_program)
+                blocked.append(alias)
+                # TODO: only alert once per alias! 
+        return list(set(blocked))
+
+## class for enumerating windows registry
+class Registry:
+    def __init__(self):
+        self.user = winreg.HKEY_CURRENT_USER
+        self.root = winreg.HKEY_CLASSES_ROOT
+        self.comp = winreg.HKEY_LOCAL_MACHINE
+        self.acct = {'root': self.root, 'user': self.user, 'comp': self.comp}
+        self.common_paths = {'root': [r"SOFTWARE"],
+                             'user': [r"SOFTWARE"],
+                             'comp': [r"SOFTWARE"]}
+
+        self.keynames = {'user': {}, 'comp': {}, 'root': {}}
+        for user in self.common_paths.keys():
+            for location in self.common_paths[user]:
+                vals_found = enumerate_registry(self.acct[user], location)
+                self.keynames[user][location] = vals_found[location]
 
 
+## main class for watching system for changes
 class Observer:
     def __init__(self):
         # We are WATCHING you
@@ -51,6 +88,27 @@ class Observer:
         title = u"*** Scam Alert! ***"
         ctypes.windll.user32.MessageBoxW(None, msg, title, 0)
         self.alerted = True
+
+## utility methods 
+def enumerate_registry(registry, key_path):
+    access = winreg.ConnectRegistry(None, registry)
+    reg_key = winreg.OpenKey(access, key_path)
+    entries = list_keys(reg_key, key_path)
+    return entries
+
+
+def list_keys(registry, location: str):
+    entries = {location: []}
+    depth = 0
+    haskeys = True
+    while haskeys:
+        try:
+            entries[location].append(winreg.EnumKey(registry, depth))
+            depth += 1
+        except OSError:
+            haskeys = False
+            pass
+    return entries
 
 
 def main():
